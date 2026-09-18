@@ -62,6 +62,13 @@ breaks and you need to know where to look.
 - **`lua/plugins/omarchy-theme-hotreload.lua`** listens for an Omarchy theme
   event that will simply never fire on Mac. It's inert there — safe to leave,
   not worth deleting unless you want the repo Omarchy-free.
+- **`lua/plugins/theme.lua`** — on the Linux/Omarchy machine this file is a
+  *symlink* Omarchy manages, pointing at whichever theme you last picked with
+  `omarchy-theme-set` (`~/.local/state/omarchy/current/theme/neovim.lua`).
+  There's no Omarchy on Mac to manage that, so the version committed to this
+  repo is a plain static snapshot (currently `tokyonight-night`) instead.
+  Changing themes on Mac means editing this file directly — it won't
+  hot-swap the way it does on the Linux box.
 - **Keybindings that assume a Linux/Hyprland modifier layout** (e.g. `M-`
   = Alt in some setups) — check `lua/config/keymaps.lua` and the top of
   `tmux.conf` if a shortcut feels off; macOS terminals often map Option/Cmd
