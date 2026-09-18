@@ -8,15 +8,16 @@ target machine is a company Mac. Only nvim + tmux are ported — Omarchy itself
 
 ```
 dotfiles/
-├── nvim/     -> symlinked to ~/.config/nvim on the source machine
+├── nvim/               a plain COPY of ~/.config/nvim
 └── tmux/
-    └── tmux.conf  -> symlinked to ~/.config/tmux/tmux.conf on the source machine
+    └── tmux.conf       a plain COPY of ~/.config/tmux/tmux.conf
 ```
 
-On the Linux box, `~/.config/nvim` and `~/.config/tmux/tmux.conf` are now
-**symlinks** pointing into this repo. That's on purpose — see "What's a
-symlink" below. Editing the files under `~/.config/...` and editing the files
-here are the same thing; there's only one real copy.
+These are real, independent copies — no symlinks. That means git here only
+ever sees what you last copied in; it does **not** auto-update when you edit
+your live config. You are responsible for syncing (see "Syncing" below).
+This was a deliberate choice: fewer moving parts to reason about, at the
+cost of a manual copy step.
 
 ## Install on a new machine (the Mac)
 
@@ -32,10 +33,10 @@ ls -la ~/.config/nvim ~/.config/tmux 2>/dev/null
 [ -e ~/.config/nvim ] && mv ~/.config/nvim ~/.config/nvim.bak
 [ -e ~/.config/tmux ] && mv ~/.config/tmux ~/.config/tmux.bak
 
-# 4. symlink this repo's configs into place
+# 4. copy this repo's configs into place (real copies, not links)
 mkdir -p ~/.config/tmux
-ln -s ~/dotfiles/nvim ~/.config/nvim
-ln -s ~/dotfiles/tmux/tmux.conf ~/.config/tmux/tmux.conf
+cp -r ~/dotfiles/nvim ~/.config/nvim
+cp ~/dotfiles/tmux/tmux.conf ~/.config/tmux/tmux.conf
 
 # 5. install neovim + tmux if not already there
 brew install neovim tmux
@@ -95,44 +96,52 @@ nothing to install beyond tmux itself. After any edit, reload with prefix
 `Ctrl-Space` then `q` (that binding is defined in the file itself), or
 `tmux source-file ~/.config/tmux/tmux.conf`.
 
-## What's a symlink (since this is the part that's easy to get lost on)
+## Syncing (the part you have to remember, since these are copies)
 
-A symlink (`ln -s target linkname`) is a pointer, not a copy. When you type
-`ln -s ~/dotfiles/nvim ~/.config/nvim`, you're saying "whenever anything
-opens `~/.config/nvim`, actually go read `~/dotfiles/nvim` instead." Neovim
-has no idea it's a symlink — it just sees a normal folder. That's why this
-setup works: **there is exactly one real copy of each file**, living in the
-git repo, and both the "config location" and the "repo location" are just
-two doors into the same room. Edit through either door, git only ever sees
-the real file in `~/dotfiles`.
+There are always **two separate copies** of each config: the live one
+(`~/.config/nvim`, `~/.config/tmux/tmux.conf`) that the apps actually read,
+and the repo one (`~/dotfiles/...`) that git tracks and pushes. Editing one
+does not touch the other. Before you push, copy live → repo. After you pull
+on the other machine, copy repo → live.
 
-Why bother instead of just copying files into `~/.config`? Because a copy
-goes stale the moment you edit it in one place and forget the other. A
-symlink can't go stale — there's only one file.
+```bash
+# LIVE -> REPO   (run this before committing, after you've edited your live config)
+cp -r ~/.config/nvim/. ~/dotfiles/nvim/
+cp ~/.config/tmux/tmux.conf ~/dotfiles/tmux/tmux.conf
 
-Two commands worth knowing:
-- `ls -la ~/.config/nvim` — the `->` in the output shows you it's a link and
-  where it points.
-- `readlink ~/.config/nvim` — prints just the target path.
-- If a symlink is broken (target moved/deleted), `ls` usually shows it in
-  red, and opening it errors "No such file or directory."
+# REPO -> LIVE   (run this after `git pull`, to apply changes you pulled)
+cp -r ~/dotfiles/nvim/. ~/.config/nvim/
+cp ~/dotfiles/tmux/tmux.conf ~/.config/tmux/tmux.conf
+```
+
+Easy way to check if they've drifted apart before you assume which way to
+copy:
+
+```bash
+diff -rq ~/.config/nvim ~/dotfiles/nvim
+diff -q ~/.config/tmux/tmux.conf ~/dotfiles/tmux/tmux.conf
+```
+
+No output = identical. Any output = they've diverged, go read it before
+blindly copying over something you meant to keep.
 
 ## Day-to-day workflow (keeping both machines in sync)
 
 ```bash
-# after editing configs on either machine
+# after editing your LIVE config, and you're ready to push:
+cp -r ~/.config/nvim/. ~/dotfiles/nvim/
+cp ~/.config/tmux/tmux.conf ~/dotfiles/tmux/tmux.conf
 cd ~/dotfiles
 git add -A
 git commit -m "describe what changed"
 git push
 
-# on the OTHER machine, to pull those changes
+# on the OTHER machine, to pull AND apply those changes:
 cd ~/dotfiles
 git pull
+cp -r ~/dotfiles/nvim/. ~/.config/nvim/
+cp ~/dotfiles/tmux/tmux.conf ~/.config/tmux/tmux.conf
 ```
-
-Nothing needs re-linking after a `git pull` — the symlinks still point at
-the same repo folder, which now just has newer content in it.
 
 ## First-time push (only needs doing once, from the Linux machine)
 
